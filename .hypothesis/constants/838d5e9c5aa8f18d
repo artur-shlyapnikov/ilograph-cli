@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/fmt.py
+# hypothesis_version: 6.151.9
+
+['--dry-run', '--stable', 'fmt']

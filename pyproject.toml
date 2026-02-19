@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ilograph-cli"
+version = "0.1.0"
+description = "CLI toolbox for safe Ilograph YAML refactors"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "typer>=0.12.5",
+  "ruamel.yaml>=0.18.6",
+  "pydantic>=2.10.0",
+  "rich>=13.9.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "hypothesis>=6.127.0",
+  "pre-commit>=4.1.0",
+  "pytest>=8.3.4",
+  "pytest-cov>=6.0.0",
+  "ruff>=0.9.6",
+  "mypy>=1.15.0",
+  "import-linter>=2.10",
+]
+
+[project.scripts]
+ilograph = "ilograph_cli.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ilograph_cli"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "-q --cov=ilograph_cli --cov-config=pyproject.toml --cov-report=term-missing --cov-report=xml"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["ilograph_cli"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true
+fail_under = 80
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "C4", "PIE", "RET", "SIM", "RUF", "TID"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"ilograph_cli.io.yaml_io.YamlNode".msg = "Use ilograph_cli.core.yaml_types.YamlNode."
+"ilograph_cli.io.yaml_io.YamlScalar".msg = "Use ilograph_cli.core.yaml_types.YamlScalar."
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_unreachable = true
+strict_equality = true
+strict_bytes = true
+extra_checks = true
+enable_error_code = [
+  "truthy-bool",
+  "redundant-expr",
+  "ignore-without-code",
+  "possibly-undefined",
+]
+pretty = true
+mypy_path = "src"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.127.0",
+    "pre-commit>=4.1.0",
+    "mypy>=1.15.0",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.9.6",
+    "import-linter>=2.10",
+]

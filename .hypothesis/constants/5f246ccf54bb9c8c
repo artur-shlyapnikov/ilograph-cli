@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/cli_support.py
+# hypothesis_version: 6.151.9
+
+[120, ': \\1\\2', 'Assertion failed, ', 'Value error, ', '__all__', '__root__', 'delete', 'equal', 'full', 'insert', 'invalid value', 'loc', 'msg', 'none', 'replace', 'strict', 'summary']

@@ -1,0 +1,39 @@
+# rename id sample
+defaults: &layout_defaults
+  x: 1
+resources:
+  - id: app
+    name: App
+    layout: *layout_defaults
+    children:
+      - &db_resource
+        id: postgres
+        name: Database
+      - id: cache
+        name: Cache
+  - id: worker
+    name: Worker
+perspectives:
+  - id: Runtime
+    name: Runtime
+    aliases:
+      - alias: backend
+        for: app,postgres
+    relations:
+      - from: app
+        to: postgres
+      - from: worker
+        via: postgres
+    overrides:
+      - resourceId: postgres
+        parentId: app
+    walkthrough:
+      - text: Intro
+        select: postgres
+    sequence:
+      start: app
+      steps:
+        - to: postgres
+contexts:
+  - id: prod
+    include: app,postgres

@@ -1,0 +1,23 @@
+resources:
+  - id: platform
+    name: Platform
+    children:
+      - id: domain
+        name: Domain
+        subtitle: Core
+        children:
+          - id: svc_a
+            name: Service A
+          - id: svc_b
+            name: Service B
+  - id: partner_api
+    name: External
+perspectives:
+  - id: Runtime
+    name: Runtime
+    relations:
+      - from: svc_a
+        to: partner_api
+      - from: svc_b
+        to: partner_api
+        label: sync

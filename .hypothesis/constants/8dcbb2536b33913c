@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/ops/context_ops.py
+# hypothesis_version: 6.151.9
+
+[',', ', ', 'contexts', 'extends', 'hasRoots', 'hidden', 'index', 'index must be >= 1', 'name', 'roots']

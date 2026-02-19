@@ -1,0 +1,45 @@
+resources:
+  - id: app
+    name: App
+  - id: db_prod
+    name: DB Prod
+  - id: db_stage
+    name: DB Stage
+contexts:
+  - name: prod
+    roots:
+      - resourceId: db_prod
+  - name: stage
+    roots:
+      - resourceId: db_stage
+perspectives:
+  - id: Runtime
+    name: Runtime
+    relations:
+      - from: app
+        to: db_prod
+        label: query-prod
+        secondary: true
+      - from: app
+        to: db_stage
+        label: query-stage
+        secondary: true
+      - from: app
+        to: db_prod
+        label: call-prod
+      - from: app
+        to: db_stage
+        label: call-stage
+  - id: Batch
+    name: Batch
+    relations:
+      - from: app
+        to: db_prod
+        label: query-prod
+        secondary: true
+      - from: app
+        to: db_prod
+        label: call-prod
+      - from: app
+        to: db_stage
+        label: call-stage

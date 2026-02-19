@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/alias.py
+# hypothesis_version: 6.151.9
+
+['-', '--alias', '--dry-run', '--for', '--index', '--json', '--new-alias', '--new-for', '--no-truncate', '--perspective', 'Alias', 'For', 'Index', 'add', 'alias', 'count', 'edit', 'fold', 'for', 'ignore', 'index', 'list', 'ls', 'new_alias', 'new_for', 'no aliases', 'perspective', 'remove', 'rows']

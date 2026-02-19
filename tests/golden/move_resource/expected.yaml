@@ -1,0 +1,20 @@
+resources:
+  - id: root
+    name: Root
+    children:
+      - id: web
+        name: Web
+  - id: shared
+    name: Shared
+    children:
+      - id: api
+        name: API
+        children:
+          - id: job
+            name: Job
+perspectives:
+  - id: Runtime
+    name: Runtime
+    relations:
+      - from: web
+        to: api

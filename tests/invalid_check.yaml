@@ -1,0 +1,20 @@
+resources:
+  - name: No/Id
+  - id: dup
+    name: Dup1
+  - id: dup
+    name: Dup2
+  - id: bad/id
+    name: Bad Id
+perspectives:
+  - id: Runtime
+    name: Runtime
+    relations:
+      - from: dup
+        to: missing
+    overrides:
+      - resourceId: missing
+        parentId: dup
+    walkthrough:
+      - text: Intro
+        select: ghost

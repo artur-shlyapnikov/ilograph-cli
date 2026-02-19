@@ -1,0 +1,95 @@
+[importlinter]
+root_package = ilograph_cli
+
+[importlinter:contract:layers]
+name = Layered architecture
+type = layers
+layers =
+    ilograph_cli.commands
+    ilograph_cli.io
+    ilograph_cli.ops
+    ilograph_cli.core
+
+[importlinter:contract:core-isolation]
+name = Core depends only on core
+type = forbidden
+source_modules =
+    ilograph_cli.core
+forbidden_modules =
+    ilograph_cli.cli
+    ilograph_cli.cli_app
+    ilograph_cli.cli_options
+    ilograph_cli.cli_support
+    ilograph_cli.commands
+    ilograph_cli.io
+    ilograph_cli.ops
+allow_indirect_imports = false
+
+[importlinter:contract:ops-isolation]
+name = Ops do not depend on CLI or IO
+type = forbidden
+source_modules =
+    ilograph_cli.ops
+forbidden_modules =
+    ilograph_cli.cli
+    ilograph_cli.cli_app
+    ilograph_cli.cli_options
+    ilograph_cli.cli_support
+    ilograph_cli.commands
+    ilograph_cli.io
+allow_indirect_imports = false
+
+[importlinter:contract:io-isolation]
+name = IO does not depend on CLI or ops
+type = forbidden
+source_modules =
+    ilograph_cli.io
+forbidden_modules =
+    ilograph_cli.cli
+    ilograph_cli.cli_app
+    ilograph_cli.cli_options
+    ilograph_cli.cli_support
+    ilograph_cli.commands
+    ilograph_cli.ops
+allow_indirect_imports = false
+
+[importlinter:contract:command-independence]
+name = Command modules independent
+type = independence
+modules =
+    ilograph_cli.commands.alias
+    ilograph_cli.commands.apply
+    ilograph_cli.commands.check
+    ilograph_cli.commands.context
+    ilograph_cli.commands.fmt
+    ilograph_cli.commands.group
+    ilograph_cli.commands.impact
+    ilograph_cli.commands.move
+    ilograph_cli.commands.override
+    ilograph_cli.commands.perspective
+    ilograph_cli.commands.relation
+    ilograph_cli.commands.rename
+    ilograph_cli.commands.resolve
+    ilograph_cli.commands.resource
+    ilograph_cli.commands.sequence
+    ilograph_cli.commands.walkthrough
+
+[importlinter:contract:cli-app-wiring-only]
+name = cli_app keeps wiring-only role
+type = forbidden
+source_modules =
+    ilograph_cli.cli_app
+forbidden_modules =
+    ilograph_cli.io
+    ilograph_cli.ops
+allow_indirect_imports = true
+
+[importlinter:contract:cli-support-boundary]
+name = cli_support does not depend on commands or ops
+type = forbidden
+source_modules =
+    ilograph_cli.cli_support
+forbidden_modules =
+    ilograph_cli.commands
+    ilograph_cli.ops
+allow_indirect_imports = false

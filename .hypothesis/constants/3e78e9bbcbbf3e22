@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/ops/relation_ops.py
+# hypothesis_version: 6.151.9
+
+['*', ', ', 'arrowDirection', 'color', 'contexts', 'description', 'from', 'label', 'name', 'relations', 'secondary', 'to', 'via', '{context}']

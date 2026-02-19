@@ -1,0 +1,11 @@
+"""Backward-compatible CLI exports."""
+
+from __future__ import annotations
+
+from ilograph_cli.cli_app import app, main
+
+__all__ = ["app", "main"]
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,16 @@
+resources:
+  - id: platform
+    name: Platform
+    children:
+      - id: svc_a
+        name: Service A
+      - id: svc_b
+        name: Service B
+  - id: ext
+    name: External
+perspectives:
+  - id: Runtime
+    name: Runtime
+    relations:
+      - from: svc_a
+        to: ext

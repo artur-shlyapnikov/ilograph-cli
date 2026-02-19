@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/walkthrough.py
+# hypothesis_version: 6.151.9
+
+['-', '--clear-detail', '--clear-expand', '--clear-hide', '--clear-highlight', '--clear-select', '--clear-text', '--detail', '--dry-run', '--expand', '--hide', '--highlight', '--index', '--json', '--no-truncate', '--perspective', '--select', '--text', '1-based slide index', 'Detail', 'Expand', 'Hide', 'Highlight', 'Index', 'Select', 'Text', 'add', 'count', 'detail', 'edit', 'expand', 'fold', 'hide', 'highlight', 'ignore', 'index', 'list', 'ls', 'perspective', 'remove', 'rows', 'select', 'text']

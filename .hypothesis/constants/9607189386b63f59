@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/core/validators.py
+# hypothesis_version: 6.151.9
+
+['::', 'alias', 'aliases', 'broken-reference', 'id', 'ilograph-native', 'imports', 'name', 'name-needs-id', 'namespace', 'perspectives', 'strict']

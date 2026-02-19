@@ -1,0 +1,29 @@
+ops:
+  - op: relation.add-many
+    target:
+      perspectives: [Runtime, Batch]
+      contexts: [prod, stage]
+    from: app
+    to: db_{context}
+    label: call-{context}
+
+  - op: relation.edit-match
+    target:
+      perspectives: "*"
+      contexts: [prod, stage]
+    match:
+      from: app
+      to: db_{context}
+      label: read-{context}
+    set:
+      label: query-{context}
+      secondary: true
+
+  - op: relation.remove-match
+    target:
+      perspectives: [Batch]
+      contexts: [stage]
+    match:
+      from: app
+      to: db_{context}
+      label: query-{context}

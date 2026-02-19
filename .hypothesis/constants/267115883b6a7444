@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/core/reference_fields.py
+# hypothesis_version: 6.151.9
+
+['aliases', 'children', 'for', 'from', 'instanceOf', 'overrides', 'parentId', 'perspectives', 'relations', 'resource.instanceOf', 'resourceId', 'resources', 'restartAt', 'sequence', 'start', 'steps', 'subSequence', 'to', 'toAndBack', 'toAsync', 'via', 'walkthrough']

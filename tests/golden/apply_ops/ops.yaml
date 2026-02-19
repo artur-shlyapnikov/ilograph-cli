@@ -1,0 +1,17 @@
+ops:
+  - op: group.create
+    id: domain
+    name: Domain
+    parent: platform
+    subtitle: Core
+  - op: group.move-many
+    ids: [svc_a, svc_b]
+    newParent: domain
+  - op: rename.resource-id
+    from: ext
+    to: partner_api
+  - op: relation.add
+    perspective: Runtime
+    from: svc_b
+    to: partner_api
+    label: sync

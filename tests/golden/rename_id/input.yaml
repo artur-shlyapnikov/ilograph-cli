@@ -1,0 +1,39 @@
+# rename id sample
+defaults: &layout_defaults
+  x: 1
+resources:
+  - id: app
+    name: App
+    layout: *layout_defaults
+    children:
+      - &db_resource
+        id: db
+        name: Database
+      - id: cache
+        name: Cache
+  - id: worker
+    name: Worker
+perspectives:
+  - id: Runtime
+    name: Runtime
+    aliases:
+      - alias: backend
+        for: app,db
+    relations:
+      - from: app
+        to: db
+      - from: worker
+        via: db
+    overrides:
+      - resourceId: db
+        parentId: app
+    walkthrough:
+      - text: Intro
+        select: db
+    sequence:
+      start: app
+      steps:
+        - to: db
+contexts:
+  - id: prod
+    include: app,db

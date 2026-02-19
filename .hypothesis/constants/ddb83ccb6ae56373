@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/resource.py
+# hypothesis_version: 6.151.9
+
+['--delete-subtree', '--dry-run', '--id', '--name', '--new-id', '--new-name', '--new-parent', '--parent', '--subtitle', 'clone', 'create', 'delete', 'delete_subtree', 'id', 'name', 'new_id', 'new_name', 'new_parent', 'none', 'parent', 'subtitle', 'with_children']

@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/ops/sequence_ops.py
+# hypothesis_version: 6.151.9
+
+['bidirectional', 'color', 'description', 'index', 'index must be >= 1', 'label', 'perspective', 'restartAt', 'sequence', 'start', 'steps', 'to', 'toAndBack', 'toAsync']

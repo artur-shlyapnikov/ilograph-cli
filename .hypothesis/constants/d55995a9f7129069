@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/perspective.py
+# hypothesis_version: 6.151.9
+
+['-', '--dry-run', '--extends', '--force', '--id', '--index', '--json', '--name', '--new-id', '--new-name', '--no-truncate', '--orientation', 'Extends', 'Identifier', 'Index', 'Name', 'Orientation', 'Perspective id/name.', 'Perspectives', 'Relations', 'Sequence', 'copy', 'count', 'create', 'delete', 'extends', 'fold', 'hasRelations', 'hasSequence', 'id', 'identifier', 'ignore', 'index', 'list', 'ls', 'name', 'new_id', 'new_name', 'no', 'no perspectives', 'orientation', 'rename', 'reorder', 'rows', 'yes']

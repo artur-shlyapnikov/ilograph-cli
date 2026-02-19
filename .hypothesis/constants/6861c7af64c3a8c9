@@ -1,0 +1,4 @@
+# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/core/normalize.py
+# hypothesis_version: 6.151.9
+
+['-', '_', 'none']
