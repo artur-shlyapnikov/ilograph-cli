@@ -16,6 +16,9 @@ from ilograph_cli.core.arg_models import (
     RelationRemoveArgs,
     RenameResourceArgs,
     RenameResourceIdArgs,
+    ResourceCloneArgs,
+    ResourceCreateArgs,
+    ResourceDeleteArgs,
 )
 from ilograph_cli.core.errors import ValidationError
 from ilograph_cli.core.normalize import normalize_optional_str, normalize_unique_list
@@ -159,10 +162,99 @@ class MoveResourceOp(BaseModel):
         alias="newParent",
         validation_alias=AliasChoices("newParent", "new_parent"),
     )
+    inherit_style_from_parent: bool = Field(
+        default=False,
+        alias="inheritStyleFromParent",
+        validation_alias=AliasChoices(
+            "inheritStyleFromParent",
+            "inherit_style_from_parent",
+        ),
+    )
 
     @model_validator(mode="after")
     def _validate(self) -> MoveResourceOp:
-        MoveResourceArgs(id=self.id, new_parent=self.new_parent)
+        MoveResourceArgs(
+            id=self.id,
+            new_parent=self.new_parent,
+            inherit_style_from_parent=self.inherit_style_from_parent,
+        )
+        return self
+
+
+class ResourceCreateOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    op: Literal["resource.create"]
+    id: str
+    name: str
+    parent: str = "none"
+    subtitle: str | None = None
+
+    @model_validator(mode="after")
+    def _validate(self) -> ResourceCreateOp:
+        ResourceCreateArgs(
+            id=self.id,
+            name=self.name,
+            parent=self.parent,
+            subtitle=self.subtitle,
+        )
+        return self
+
+
+class ResourceDeleteOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    op: Literal["resource.delete"]
+    id: str
+    delete_subtree: bool = Field(
+        default=False,
+        alias="deleteSubtree",
+        validation_alias=AliasChoices("deleteSubtree", "delete_subtree"),
+    )
+
+    @model_validator(mode="after")
+    def _validate(self) -> ResourceDeleteOp:
+        ResourceDeleteArgs(
+            id=self.id,
+            delete_subtree=self.delete_subtree,
+        )
+        return self
+
+
+class ResourceCloneOp(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    op: Literal["resource.clone"]
+    id: str
+    new_id: str = Field(
+        alias="newId",
+        validation_alias=AliasChoices("newId", "new_id"),
+    )
+    new_parent: str | None = Field(
+        default=None,
+        alias="newParent",
+        validation_alias=AliasChoices("newParent", "new_parent"),
+    )
+    new_name: str | None = Field(
+        default=None,
+        alias="newName",
+        validation_alias=AliasChoices("newName", "new_name"),
+    )
+    with_children: bool = Field(
+        default=False,
+        alias="withChildren",
+        validation_alias=AliasChoices("withChildren", "with_children"),
+    )
+
+    @model_validator(mode="after")
+    def _validate(self) -> ResourceCloneOp:
+        ResourceCloneArgs(
+            id=self.id,
+            new_id=self.new_id,
+            new_parent=self.new_parent,
+            new_name=self.new_name,
+            with_children=self.with_children,
+        )
         return self
 
 
@@ -377,7 +469,10 @@ class FmtStableOp(BaseModel):
 
 
 Operation = Annotated[
-    RenameResourceOp
+    ResourceCreateOp
+    | ResourceDeleteOp
+    | ResourceCloneOp
+    | RenameResourceOp
     | RenameResourceIdOp
     | MoveResourceOp
     | GroupCreateOp

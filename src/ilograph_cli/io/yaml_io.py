@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import re
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Literal
 
 from ruamel.yaml import YAML
@@ -65,6 +70,9 @@ _SEQUENCE_LINE_RE = re.compile(r"^(?P<indent>\s*)-\s")
 _MAP_KEY_LINE_RE = re.compile(
     r"^(?P<indent>\s*)(?P<key>[A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(?:#.*)?$"
 )
+_LOCK_RETRY_INTERVAL_SECONDS = 0.05
+_LOCK_PREFIX = "."
+_LOCK_SUFFIX = ".ilograph.lock"
 
 
 def build_yaml(profile: YamlFormatProfile | None = None) -> YAML:
@@ -94,6 +102,56 @@ def read_text(path: Path) -> str:
     """Read UTF-8 text file."""
 
     return path.read_text(encoding="utf-8")
+
+
+def build_lock_path(path: Path) -> Path:
+    """Return sidecar lock-file path for a diagram file."""
+
+    return path.with_name(f"{_LOCK_PREFIX}{path.name}{_LOCK_SUFFIX}")
+
+
+@contextmanager
+def file_lock(path: Path, *, timeout_seconds: float = 0.0) -> Iterator[None]:
+    """Acquire best-effort inter-process lock via sidecar file."""
+
+    lock_path = build_lock_path(path)
+    wait_budget = max(timeout_seconds, 0.0)
+    deadline = time.monotonic() + wait_budget
+
+    while True:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError as exc:
+            if _remove_stale_lock(lock_path):
+                continue
+            if time.monotonic() >= deadline:
+                owner = _read_lock_owner_pid(lock_path)
+                if owner is not None:
+                    raise ValidationError(
+                        f"file is locked by another command (pid={owner}): {path}"
+                    ) from exc
+                raise ValidationError(f"file is locked by another command: {path}") from exc
+            time.sleep(_LOCK_RETRY_INTERVAL_SECONDS)
+            continue
+        except OSError as exc:
+            raise ValidationError(f"unable to acquire lock for {path}: {exc}") from exc
+        else:
+            try:
+                payload = (
+                    f"pid={os.getpid()}\n"
+                    f"path={path}\n"
+                    f"started={int(time.time())}\n"
+                )
+                os.write(fd, payload.encode("utf-8"))
+            finally:
+                os.close(fd)
+            break
+
+    try:
+        yield
+    finally:
+        with suppress(FileNotFoundError):
+            lock_path.unlink()
 
 
 def load_document(path: Path, *, format_profile: YamlFormatProfile | None = None) -> CommentedMap:
@@ -162,6 +220,92 @@ def write_text(path: Path, text: str) -> None:
     """Write UTF-8 text file."""
 
     path.write_text(text, encoding="utf-8")
+
+
+def write_text_atomic(path: Path, text: str, *, expected_before: str | None = None) -> None:
+    """Atomically replace text file, optionally guarding expected prior content."""
+
+    current = read_text(path)
+    if expected_before is not None and current != expected_before:
+        raise ValidationError(
+            "file changed while command was running; no write applied (retry command)"
+        )
+
+    temp_path: Path | None = None
+    try:
+        with NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.tmp.",
+            suffix=".yaml",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(text)
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+            temp_path = Path(temp_file.name)
+
+        if temp_path is None:
+            raise ValidationError(f"failed to create temp file for atomic write: {path}")
+
+        try:
+            mode = path.stat().st_mode
+            os.chmod(temp_path, mode & 0o777)
+        except OSError:
+            pass
+
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            with suppress(FileNotFoundError):
+                temp_path.unlink()
+
+
+def _read_lock_owner_pid(lock_path: Path) -> int | None:
+    try:
+        raw = lock_path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+    for line in raw.splitlines():
+        if not line.startswith("pid="):
+            continue
+        try:
+            owner = int(line.removeprefix("pid=").strip())
+        except ValueError:
+            return None
+        return owner if owner > 0 else None
+    return None
+
+
+def _remove_stale_lock(lock_path: Path) -> bool:
+    owner = _read_lock_owner_pid(lock_path)
+    if owner is None:
+        return False
+    if _pid_is_running(owner):
+        return False
+    try:
+        lock_path.unlink()
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _pid_is_running(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return True
+    return True
 
 
 def _quote_reference_bracket_scalars(raw: str) -> str:

@@ -3,10 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from ilograph_cli.io.yaml_io import detect_format_profile, dump_document, load_document
+from ilograph_cli.core.errors import ValidationError
+from ilograph_cli.io.yaml_io import (
+    detect_format_profile,
+    dump_document,
+    load_document,
+    write_text_atomic,
+)
 
 _IDENTIFIER = st.from_regex(r"[a-z][a-z0-9_-]{0,8}", fullmatch=True)
 _REFERENCE_KEY = st.sampled_from(("from", "to", "via"))
@@ -137,3 +144,15 @@ def test_format_profile_round_trip_is_stable(
         second_document = load_document(second_path, format_profile=second_profile)
         second_dump = dump_document(second_document, format_profile=second_profile)
         assert second_dump == first_dump
+
+
+def test_atomic_write_rejects_unexpected_prior_content(tmp_path: Path) -> None:
+    diagram = tmp_path / "diagram.yaml"
+    diagram.write_text("resources: []\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="file changed while command was running"):
+        write_text_atomic(
+            diagram,
+            "resources:\n  - id: app\n    name: App\n",
+            expected_before="resources:\n  - id: old\n    name: Old\n",
+        )

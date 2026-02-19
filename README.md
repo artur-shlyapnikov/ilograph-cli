@@ -44,6 +44,7 @@ ilograph check --file diagram.yaml --mode strict --json
 
 ilograph apply --file diagram.yaml --ops ops.yaml --dry-run --diff summary
 ilograph apply --file diagram.yaml --ops ops.yaml --diff full
+ilograph batch --file diagram.yaml --op '{"op":"rename.resource","id":"api","name":"API v2"}' --op '{"op":"relation.add","perspective":"Runtime","from":"web","to":"api"}'
 
 ilograph impact --file diagram.yaml --resource-id api
 ilograph impact --file diagram.yaml --resource-id api --json
@@ -65,6 +66,7 @@ ilograph rename resource --file diagram.yaml --id api --name "API Gateway"
 ilograph rename resource-id --file diagram.yaml --from api --to edge_api
 
 ilograph move resource --file diagram.yaml --id svc --new-parent platform
+ilograph move resource --file diagram.yaml --id svc --new-parent platform --inherit-style-from-parent
 
 ilograph group create --file diagram.yaml --id domain --name "Domain" --parent platform
 ilograph group move-many --file diagram.yaml --ids svc1,svc2 --new-parent domain

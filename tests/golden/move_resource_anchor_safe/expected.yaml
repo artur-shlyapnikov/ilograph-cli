@@ -1,0 +1,13 @@
+resources:
+  - id: integrations
+    name: Integrations
+    children:
+      - id: external
+        name: External
+        style: &external_integration_color
+          color: '#5f95ff'
+  - id: customers
+    name: Customers
+    children:
+      - id: acme
+        name: Acme

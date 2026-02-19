@@ -1,0 +1,10 @@
+resources:
+  - id: app
+    name: App v2
+  - id: db
+    name: DB
+perspectives:
+  - id: Runtime
+    overrides:
+      - { resourceId: app, style: { color: red } }
+      - { resourceId: db, style: { color: blue } }

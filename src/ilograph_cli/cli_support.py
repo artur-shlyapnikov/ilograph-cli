@@ -15,23 +15,31 @@ import typer
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from rich.console import Console
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from ilograph_cli.core.errors import ValidationError
 from ilograph_cli.core.validators import validate_document
-from ilograph_cli.io.diff import build_unified_diff, print_diff, summarize_diff
+from ilograph_cli.io.diff import (
+    SectionDiff,
+    build_unified_diff,
+    print_diff,
+    summarize_diff,
+    summarize_touched_sections,
+)
 from ilograph_cli.io.yaml_io import (
     detect_format_profile,
     dump_document,
+    file_lock,
     load_document,
     read_text,
-    write_text,
+    write_text_atomic,
 )
 
 type DiffMode = Literal["full", "summary", "none"]
 Mutator = Callable[[CommentedMap], bool | None]
 
 _BLOCK_HEADER_STYLE_RE = re.compile(r":\s*([|>])\d*([+-]?)$")
+_FLOW_STYLE_PUNCTUATION: frozenset[str] = frozenset("{}[],:")
 
 
 def validate_payload[TModel: BaseModel](
@@ -87,6 +95,7 @@ class MutationRunner:
 
     console: Console
     diff_preview_limit: int = 120
+    lock_wait_seconds: float = 0.0
 
     def run(
         self,
@@ -96,27 +105,53 @@ class MutationRunner:
         diff_mode: str,
         mutator: Mutator,
     ) -> None:
+        normalized_diff_mode = _normalize_diff_mode(diff_mode)
+        if dry_run:
+            self._run_once(
+                file_path=file_path,
+                dry_run=True,
+                diff_mode=normalized_diff_mode,
+                mutator=mutator,
+            )
+            return
+
+        with file_lock(file_path, timeout_seconds=self.lock_wait_seconds):
+            self._run_once(
+                file_path=file_path,
+                dry_run=False,
+                diff_mode=normalized_diff_mode,
+                mutator=mutator,
+            )
+
+    def _run_once(
+        self,
+        *,
+        file_path: Path,
+        dry_run: bool,
+        diff_mode: DiffMode,
+        mutator: Mutator,
+    ) -> None:
         before = read_text(file_path)
         format_profile = detect_format_profile(before)
         document = load_document(file_path, format_profile=format_profile)
+        anchor_snapshot = _snapshot_document_anchors(document)
         changed_hint = mutator(document)
         if changed_hint is False:
             self.console.print("no changes (document already matches requested state)")
             return
 
+        _restore_document_anchors(document, anchor_snapshot)
         _ensure_document_valid_for_write(document)
         after = dump_document(document, format_profile=format_profile)
         after = _restore_style_only_replacements(before, after)
-        normalized_diff_mode = _normalize_diff_mode(diff_mode)
-
-        changed = self._render_diff(before, after, file_path, diff_mode=normalized_diff_mode)
+        changed = self._render_diff(before, after, file_path, diff_mode=diff_mode)
         if not changed:
             return
         if dry_run:
             self.console.print("dry-run: changes were not written")
             return
 
-        write_text(file_path, after)
+        write_text_atomic(file_path, after, expected_before=before)
         self.console.print(f"updated: {file_path}")
 
     def _render_diff(self, before: str, after: str, path: Path, *, diff_mode: DiffMode) -> bool:
@@ -126,23 +161,30 @@ class MutationRunner:
 
         diff_lines = build_unified_diff(before, after, str(path))
         summary = summarize_diff(diff_lines)
+        touched_sections = summarize_touched_sections(before, after)
+        section_summary = _format_touched_sections(touched_sections)
 
         if diff_mode == "none":
             self.console.print(
                 f"changes: +{summary.added} -{summary.deleted} ({summary.hunks} hunks); "
-                "diff hidden (--diff full to show)"
+                f"{section_summary}; diff hidden (--diff full to show)"
             )
             return True
 
         if diff_mode == "summary" and len(diff_lines) > self.diff_preview_limit:
             self.console.print(
                 f"diff summary: +{summary.added} -{summary.deleted} "
-                f"({summary.hunks} hunks); showing first {self.diff_preview_limit} lines"
+                f"({summary.hunks} hunks); {section_summary}; "
+                f"showing first {self.diff_preview_limit} lines"
             )
             print_diff(self.console, diff_lines[: self.diff_preview_limit])
             self.console.print("... diff truncated (use --diff full to print all)")
             return True
 
+        self.console.print(
+            f"diff summary: +{summary.added} -{summary.deleted} "
+            f"({summary.hunks} hunks); {section_summary}"
+        )
         print_diff(self.console, diff_lines)
         return True
 
@@ -201,7 +243,159 @@ def _style_equivalent_block(before_lines: list[str], after_lines: list[str]) -> 
 
 def _normalize_style_line(line: str) -> str:
     normalized = line.lstrip(" ")
-    return _BLOCK_HEADER_STYLE_RE.sub(r": \1\2", normalized)
+    normalized = _BLOCK_HEADER_STYLE_RE.sub(r": \1\2", normalized)
+    if "{" not in normalized and "[" not in normalized:
+        return normalized
+    return _normalize_flow_style_spacing(normalized)
+
+
+def _normalize_flow_style_spacing(line: str) -> str:
+    output: list[str] = []
+    pending_space = False
+    in_single_quotes = False
+    in_double_quotes = False
+    escape_next = False
+
+    for char in line:
+        if in_single_quotes:
+            output.append(char)
+            if char == "'":
+                in_single_quotes = False
+            continue
+
+        if in_double_quotes:
+            output.append(char)
+            if escape_next:
+                escape_next = False
+                continue
+            if char == "\\":
+                escape_next = True
+                continue
+            if char == '"':
+                in_double_quotes = False
+            continue
+
+        if char == "'":
+            if pending_space and output and output[-1] not in _FLOW_STYLE_PUNCTUATION:
+                output.append(" ")
+            pending_space = False
+            output.append(char)
+            in_single_quotes = True
+            continue
+
+        if char == '"':
+            if pending_space and output and output[-1] not in _FLOW_STYLE_PUNCTUATION:
+                output.append(" ")
+            pending_space = False
+            output.append(char)
+            in_double_quotes = True
+            continue
+
+        if char.isspace():
+            pending_space = True
+            continue
+
+        if char in _FLOW_STYLE_PUNCTUATION:
+            if output and output[-1] == " ":
+                output.pop()
+            output.append(char)
+            pending_space = False
+            continue
+
+        if pending_space and output and output[-1] not in _FLOW_STYLE_PUNCTUATION:
+            output.append(" ")
+        pending_space = False
+        output.append(char)
+
+    return "".join(output)
+
+
+def _format_touched_sections(sections: list[SectionDiff]) -> str:
+    if not sections:
+        return "touched sections: none"
+    rendered = ", ".join(
+        f"{section.name}(+{section.added}/-{section.deleted})"
+        for section in sections
+    )
+    return f"touched sections: {rendered}"
+
+
+def _snapshot_document_anchors(document: CommentedMap) -> dict[int, str]:
+    snapshot: dict[int, str] = {}
+    for node in _iter_yaml_nodes(document):
+        anchor = _anchor_name(node)
+        if anchor is None:
+            continue
+        snapshot[id(node)] = anchor
+    return snapshot
+
+
+def _restore_document_anchors(document: CommentedMap, snapshot: dict[int, str]) -> None:
+    if not snapshot:
+        return
+
+    preserved_names = set(snapshot.values())
+    for node in _iter_yaml_nodes(document):
+        node_id = id(node)
+        expected_name = snapshot.get(node_id)
+        if expected_name is not None:
+            _set_anchor(node, expected_name)
+            continue
+
+        current_name = _anchor_name(node)
+        if current_name is None:
+            continue
+        if current_name in preserved_names:
+            _clear_anchor(node)
+
+
+def _iter_yaml_nodes(node: object) -> list[object]:
+    stack = [node]
+    visited: set[int] = set()
+    nodes: list[object] = []
+
+    while stack:
+        current = stack.pop()
+        current_id = id(current)
+        if current_id in visited:
+            continue
+        visited.add(current_id)
+        nodes.append(current)
+
+        if isinstance(current, CommentedMap):
+            stack.extend(reversed(list(current.values())))
+            continue
+        if isinstance(current, CommentedSeq):
+            stack.extend(reversed(list(current)))
+            continue
+    return nodes
+
+
+def _anchor_name(node: object) -> str | None:
+    anchor_getter = getattr(node, "yaml_anchor", None)
+    if not callable(anchor_getter):
+        return None
+    anchor = anchor_getter()
+    if anchor is None:
+        return None
+    value = getattr(anchor, "value", None)
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+def _set_anchor(node: object, name: str) -> None:
+    anchor_setter = getattr(node, "yaml_set_anchor", None)
+    if not callable(anchor_setter):
+        return
+    anchor_setter(name, always_dump=True)
+
+
+def _clear_anchor(node: object) -> None:
+    anchor_setter = getattr(node, "yaml_set_anchor", None)
+    if not callable(anchor_setter):
+        return
+    anchor_setter(None)
 
 
 def _ensure_document_valid_for_write(document: CommentedMap) -> None:

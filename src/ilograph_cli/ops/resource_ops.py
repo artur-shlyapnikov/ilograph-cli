@@ -91,7 +91,13 @@ def rename_resource_id(document: CommentedMap, *, old_id: str, new_id: str) -> b
     return True
 
 
-def move_resource(document: CommentedMap, *, resource_id: str, new_parent_id: str) -> bool:
+def move_resource(
+    document: CommentedMap,
+    *,
+    resource_id: str,
+    new_parent_id: str,
+    inherit_style_from_parent: bool = False,
+) -> bool:
     """Move resource subtree under new parent."""
 
     location = get_single_resource_by_id(document, resource_id)
@@ -106,11 +112,15 @@ def move_resource(document: CommentedMap, *, resource_id: str, new_parent_id: st
 
     target_children = ensure_children(target_parent.node)
     if location.container is target_children and location.index == len(location.container) - 1:
-        return False
+        if not inherit_style_from_parent:
+            return False
+        return _clear_resource_style_for_inheritance(location.node)
 
     source_container = location.container
     source_container.pop(location.index)
     target_children.append(location.node)
+    if inherit_style_from_parent:
+        _clear_resource_style_for_inheritance(location.node)
     return True
 
 
@@ -260,6 +270,15 @@ def _first_explicit_descendant_id(node: CommentedMap, *, existing_ids: set[str])
         if nested is not None:
             return nested
     return None
+
+
+def _clear_resource_style_for_inheritance(resource: CommentedMap) -> bool:
+    """Drop explicit style so resource follows parent styling."""
+
+    if "style" not in resource:
+        return False
+    resource.pop("style", None)
+    return True
 
 
 def _clear_anchors(node: CommentedMap | CommentedSeq) -> None:

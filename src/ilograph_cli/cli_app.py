@@ -8,6 +8,7 @@ from rich.console import Console
 from ilograph_cli.cli_support import CliGuard, MutationRunner, handle_error
 from ilograph_cli.commands import alias as alias_commands
 from ilograph_cli.commands import apply as apply_commands
+from ilograph_cli.commands import batch as batch_commands
 from ilograph_cli.commands import check as check_commands
 from ilograph_cli.commands import context as context_commands
 from ilograph_cli.commands import fmt as fmt_commands
@@ -95,6 +96,7 @@ def build_app(*, console: Console | None = None) -> typer.Typer:
 
     check_commands.register(app, console=resolved_console, guard=guard)
     apply_commands.register(app, guard=guard, runner=runner)
+    batch_commands.register(app, guard=guard, runner=runner)
     impact_commands.register(app, console=resolved_console, guard=guard)
     resolve_commands.register(app, console=resolved_console, guard=guard)
     fmt_commands.register(app, console=resolved_console, guard=guard)

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from ilograph_cli.cli import app
+from ilograph_cli.io.yaml_io import build_lock_path
 
 runner = CliRunner()
 
@@ -73,6 +75,56 @@ def test_move_resource_golden(tmp_path: Path) -> None:
     assert actual == expected
 
 
+def test_move_resource_anchor_safe_golden(tmp_path: Path) -> None:
+    base = Path("tests/golden/move_resource_anchor_safe")
+    diagram = _copy_fixture(base / "input.yaml", tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "move",
+            "resource",
+            "--file",
+            str(diagram),
+            "--id",
+            "acme",
+            "--new-parent",
+            "customers",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    expected = (base / "expected.yaml").read_text(encoding="utf-8")
+    actual = diagram.read_text(encoding="utf-8")
+    assert actual == expected
+    assert "&external_integration_color" in actual
+
+
+def test_noop_formatting_golden(tmp_path: Path) -> None:
+    base = Path("tests/golden/noop_formatting")
+    diagram = _copy_fixture(base / "input.yaml", tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "rename",
+            "resource",
+            "--file",
+            str(diagram),
+            "--id",
+            "app",
+            "--name",
+            "App v2",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    expected = (base / "expected.yaml").read_text(encoding="utf-8")
+    actual = diagram.read_text(encoding="utf-8")
+    assert actual == expected
+    assert "{ resourceId: app, style: { color: red } }" in actual
+
+
 def test_apply_ops_golden(tmp_path: Path) -> None:
     base = Path("tests/golden/apply_ops")
     diagram = _copy_fixture(base / "input.yaml", tmp_path)
@@ -92,6 +144,41 @@ def test_apply_ops_golden(tmp_path: Path) -> None:
     expected = (base / "expected.yaml").read_text(encoding="utf-8")
     actual = diagram.read_text(encoding="utf-8")
     assert actual == expected
+
+
+def test_batch_inline_ops_runs_single_transaction(tmp_path: Path) -> None:
+    diagram = _write_yaml(
+        tmp_path,
+        (
+            "resources:\n"
+            "  - id: app\n"
+            "    name: App\n"
+            "  - id: db\n"
+            "    name: DB\n"
+            "perspectives:\n"
+            "  - id: Runtime\n"
+            "    name: Runtime\n"
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            "--file",
+            str(diagram),
+            "--op",
+            '{"op":"rename.resource","id":"app","name":"Application"}',
+            "--op",
+            '{"op":"relation.add","perspective":"Runtime","from":"app","to":"db"}',
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    after = diagram.read_text(encoding="utf-8")
+    assert "name: Application" in after
+    assert "from: app" in after
+    assert "to: db" in after
 
 
 def test_apply_ops_dry_run_does_not_write(tmp_path: Path) -> None:
@@ -115,6 +202,49 @@ def test_apply_ops_dry_run_does_not_write(tmp_path: Path) -> None:
     after = diagram.read_text(encoding="utf-8")
     assert after == before
     assert "dry-run" in result.output
+
+
+def test_apply_ops_supports_resource_create_delete_clone(tmp_path: Path) -> None:
+    diagram = _write_yaml(
+        tmp_path,
+        (
+            "resources:\n"
+            "  - id: app\n"
+            "    name: App\n"
+        ),
+    )
+    ops = _write_yaml(
+        tmp_path,
+        (
+            "ops:\n"
+            "  - op: resource.create\n"
+            "    id: edge\n"
+            "    name: Edge\n"
+            "    parent: none\n"
+            "  - op: resource.clone\n"
+            "    id: edge\n"
+            "    newId: edge_copy\n"
+            "  - op: resource.delete\n"
+            "    id: edge_copy\n"
+        ),
+        name="ops.yaml",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "apply",
+            "--file",
+            str(diagram),
+            "--ops",
+            str(ops),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    after = diagram.read_text(encoding="utf-8")
+    assert "id: edge\n" in after
+    assert "id: edge_copy\n" not in after
 
 
 def test_apply_ops_relation_templates_golden(tmp_path: Path) -> None:
@@ -511,6 +641,45 @@ def test_move_resource_rejects_move_under_descendant_and_keeps_file(tmp_path: Pa
     assert after == before
 
 
+def test_move_resource_inherit_style_from_parent_drops_style_block(tmp_path: Path) -> None:
+    diagram = _write_yaml(
+        tmp_path,
+        (
+            "resources:\n"
+            "  - id: source_group\n"
+            "    name: Source\n"
+            "    children:\n"
+            "      - id: acme\n"
+            "        name: Acme\n"
+            "        style:\n"
+            "          color: '#ff0000'\n"
+            "  - id: destination_group\n"
+            "    name: Destination\n"
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "move",
+            "resource",
+            "--file",
+            str(diagram),
+            "--id",
+            "acme",
+            "--new-parent",
+            "destination_group",
+            "--inherit-style-from-parent",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    after = diagram.read_text(encoding="utf-8")
+    assert "destination_group" in after
+    assert "children:\n      - id: acme" in after
+    assert "color: '#ff0000'" not in after
+
+
 def test_relation_remove_rejects_out_of_range_index_and_keeps_file(tmp_path: Path) -> None:
     base = Path("tests/golden/rename_id")
     diagram = _copy_fixture(base / "input.yaml", tmp_path)
@@ -596,6 +765,31 @@ def test_apply_is_transactional_on_failure(tmp_path: Path) -> None:
     assert after == before
 
 
+def test_mutation_fails_fast_when_diagram_is_locked(tmp_path: Path) -> None:
+    base = Path("tests/golden/apply_ops")
+    diagram = _copy_fixture(base / "input.yaml", tmp_path)
+    lock_path = build_lock_path(diagram)
+    lock_path.write_text(f"pid={os.getpid()}\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "rename",
+            "resource",
+            "--file",
+            str(diagram),
+            "--id",
+            "platform",
+            "--name",
+            "Platform v2",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "file is locked by another command" in result.output
+    assert diagram.read_text(encoding="utf-8") == (base / "input.yaml").read_text(encoding="utf-8")
+
+
 def test_apply_relation_remove_match_require_match_false_is_safe_noop(tmp_path: Path) -> None:
     base = Path("tests/golden/relation_templates")
     diagram = _copy_fixture(base / "input.yaml", tmp_path)
@@ -629,6 +823,52 @@ def test_apply_relation_remove_match_require_match_false_is_safe_noop(tmp_path: 
     after = diagram.read_text(encoding="utf-8")
     assert after == before
     assert "no changes" in result.output
+
+
+def test_apply_move_resource_inherit_style_from_parent(tmp_path: Path) -> None:
+    diagram = _write_yaml(
+        tmp_path,
+        (
+            "resources:\n"
+            "  - id: source\n"
+            "    name: Source\n"
+            "    children:\n"
+            "      - id: acme\n"
+            "        name: Acme\n"
+            "        style:\n"
+            "          color: '#f00'\n"
+            "  - id: destination\n"
+            "    name: Destination\n"
+        ),
+    )
+    ops = _write_yaml(
+        tmp_path,
+        (
+            "ops:\n"
+            "  - op: move.resource\n"
+            "    id: acme\n"
+            "    newParent: destination\n"
+            "    inheritStyleFromParent: true\n"
+        ),
+        name="ops.yaml",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "apply",
+            "--file",
+            str(diagram),
+            "--ops",
+            str(ops),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    after = diagram.read_text(encoding="utf-8")
+    assert "destination" in after
+    assert "children:\n      - id: acme" in after
+    assert "color: '#f00'" not in after
 
 
 def test_apply_relation_remove_match_require_match_true_errors_on_noop(tmp_path: Path) -> None:
@@ -1130,6 +1370,7 @@ def test_mutation_diff_none_hides_patch_lines(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert "diff hidden" in result.output
+    assert "touched sections: resources" in result.output
     assert "--- a/" not in result.output
 
 

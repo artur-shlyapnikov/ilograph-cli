@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from difflib import unified_diff
@@ -17,6 +18,21 @@ class DiffSummary:
     added: int = 0
     deleted: int = 0
     hunks: int = 0
+
+
+@dataclass(slots=True)
+class SectionDiff:
+    """Per top-level section diff counts."""
+
+    name: str
+    added: int = 0
+    deleted: int = 0
+
+
+_TOP_LEVEL_SECTION_LINE_RE = re.compile(
+    r"^(?P<name>[A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(?:#.*)?$"
+)
+_DEFAULT_TOUCHED_SECTIONS: tuple[str, ...] = ("resources", "contexts", "perspectives")
 
 
 def build_unified_diff(before: str, after: str, path: str) -> list[str]:
@@ -54,6 +70,42 @@ def summarize_diff(lines: Iterable[str]) -> DiffSummary:
     return summary
 
 
+def summarize_touched_sections(
+    before: str,
+    after: str,
+    *,
+    sections: tuple[str, ...] = _DEFAULT_TOUCHED_SECTIONS,
+) -> list[SectionDiff]:
+    """Summarize touched top-level sections by +/- line counts."""
+
+    before_blocks = _extract_top_level_blocks(before)
+    after_blocks = _extract_top_level_blocks(after)
+    touched: list[SectionDiff] = []
+
+    for section in sections:
+        before_block = before_blocks.get(section, [])
+        after_block = after_blocks.get(section, [])
+        if before_block == after_block:
+            continue
+
+        section_diff = unified_diff(
+            before_block,
+            after_block,
+            fromfile=f"a/{section}",
+            tofile=f"b/{section}",
+            lineterm="",
+        )
+        summary = summarize_diff(section_diff)
+        touched.append(
+            SectionDiff(
+                name=section,
+                added=summary.added,
+                deleted=summary.deleted,
+            )
+        )
+    return touched
+
+
 def print_diff(console: Console, lines: Iterable[str]) -> None:
     """Print colored diff."""
 
@@ -75,3 +127,24 @@ def _normalize_path_for_diff(path: str) -> str:
     if normalized.startswith("/"):
         normalized = normalized.lstrip("/")
     return normalized or path
+
+
+def _extract_top_level_blocks(raw: str) -> dict[str, list[str]]:
+    lines = raw.splitlines(keepends=False)
+    starts: list[tuple[int, str]] = []
+    for index, line in enumerate(lines):
+        if line.startswith(" "):
+            continue
+        match = _TOP_LEVEL_SECTION_LINE_RE.match(line)
+        if match is None:
+            continue
+        starts.append((index, match.group("name")))
+
+    if not starts:
+        return {}
+
+    blocks: dict[str, list[str]] = {}
+    for idx, (start_index, name) in enumerate(starts):
+        end_index = starts[idx + 1][0] if idx + 1 < len(starts) else len(lines)
+        blocks[name] = lines[start_index:end_index]
+    return blocks

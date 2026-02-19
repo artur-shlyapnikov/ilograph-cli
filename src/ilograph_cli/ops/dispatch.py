@@ -20,6 +20,9 @@ from ilograph_cli.core.ops_models import (
     RelationRemoveOp,
     RenameResourceIdOp,
     RenameResourceOp,
+    ResourceCloneOp,
+    ResourceCreateOp,
+    ResourceDeleteOp,
 )
 from ilograph_cli.ops.group_ops import create_group, move_many
 from ilograph_cli.ops.relation_ops import (
@@ -30,7 +33,14 @@ from ilograph_cli.ops.relation_ops import (
     remove_relation,
     remove_relations_match_many,
 )
-from ilograph_cli.ops.resource_ops import move_resource, rename_resource, rename_resource_id
+from ilograph_cli.ops.resource_ops import (
+    clone_resource,
+    create_resource,
+    delete_resource,
+    move_resource,
+    rename_resource,
+    rename_resource_id,
+)
 
 
 @singledispatch
@@ -46,13 +56,50 @@ def _apply_rename_resource(op: RenameResourceOp, document: CommentedMap) -> bool
 
 
 @apply_op.register
+def _apply_resource_create(op: ResourceCreateOp, document: CommentedMap) -> bool:
+    return create_resource(
+        document,
+        resource_id=op.id,
+        name=op.name,
+        parent_id=op.parent,
+        subtitle=op.subtitle,
+    )
+
+
+@apply_op.register
+def _apply_resource_delete(op: ResourceDeleteOp, document: CommentedMap) -> bool:
+    return delete_resource(
+        document,
+        resource_id=op.id,
+        delete_subtree=op.delete_subtree,
+    )
+
+
+@apply_op.register
+def _apply_resource_clone(op: ResourceCloneOp, document: CommentedMap) -> bool:
+    return clone_resource(
+        document,
+        resource_id=op.id,
+        new_id=op.new_id,
+        new_parent_id=op.new_parent,
+        new_name=op.new_name,
+        with_children=op.with_children,
+    )
+
+
+@apply_op.register
 def _apply_rename_resource_id(op: RenameResourceIdOp, document: CommentedMap) -> bool:
     return rename_resource_id(document, old_id=op.from_, new_id=op.to)
 
 
 @apply_op.register
 def _apply_move_resource(op: MoveResourceOp, document: CommentedMap) -> bool:
-    return move_resource(document, resource_id=op.id, new_parent_id=op.new_parent)
+    return move_resource(
+        document,
+        resource_id=op.id,
+        new_parent_id=op.new_parent,
+        inherit_style_from_parent=op.inherit_style_from_parent,
+    )
 
 
 @apply_op.register

@@ -119,6 +119,7 @@ class MoveResourceArgs(BaseModel):
 
     id: str
     new_parent: str
+    inherit_style_from_parent: bool = False
 
     @model_validator(mode="after")
     def _validate(self) -> MoveResourceArgs:

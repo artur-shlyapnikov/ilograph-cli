@@ -15,6 +15,58 @@ Rules:
 
 ## Operations
 
+### `resource.create`
+
+```yaml
+- op: resource.create
+  id: api
+  name: API
+  parent: platform # optional, default: none
+  subtitle: Optional subtitle
+```
+
+Required:
+- `id`
+- `name`
+
+Optional:
+- `parent`
+- `subtitle`
+
+### `resource.delete`
+
+```yaml
+- op: resource.delete
+  id: api
+  deleteSubtree: true
+```
+
+Required:
+- `id`
+
+Optional:
+- `deleteSubtree` (default `false`)
+
+### `resource.clone`
+
+```yaml
+- op: resource.clone
+  id: api
+  newId: api_v2
+  newParent: platform # optional
+  newName: API v2 # optional
+  withChildren: false # optional
+```
+
+Required:
+- `id`
+- `newId`
+
+Optional:
+- `newParent`
+- `newName`
+- `withChildren`
+
 ### `rename.resource`
 
 ```yaml
@@ -49,11 +101,15 @@ Notes:
 - op: move.resource
   id: svc
   newParent: platform
+  inheritStyleFromParent: true # optional
 ```
 
 Required:
 - `id`
 - `newParent` (or `new_parent`)
+
+Optional:
+- `inheritStyleFromParent` (or `inherit_style_from_parent`, default `false`)
 
 ### `group.create`
 

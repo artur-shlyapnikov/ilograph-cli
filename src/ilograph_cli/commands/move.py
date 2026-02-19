@@ -30,6 +30,14 @@ def register(app: typer.Typer, *, guard: CliGuard, runner: MutationRunner) -> No
             "--dry-run",
             help="Preview diff and validation results without writing.",
         ),
+        inherit_style_from_parent: bool = typer.Option(
+            False,
+            "--inherit-style-from-parent/--keep-style",
+            help=(
+                "Drop moved resource `style` so it inherits destination parent style "
+                "(default: --keep-style)."
+            ),
+        ),
         diff_mode: str = diff_mode_option,
     ) -> None:
         """Move resource subtree."""
@@ -37,7 +45,11 @@ def register(app: typer.Typer, *, guard: CliGuard, runner: MutationRunner) -> No
         with guard:
             args = validate_payload(
                 MoveResourceArgs,
-                {"id": resource_id, "new_parent": new_parent},
+                {
+                    "id": resource_id,
+                    "new_parent": new_parent,
+                    "inherit_style_from_parent": inherit_style_from_parent,
+                },
             )
 
             def mutate(document: CommentedMap) -> bool:
@@ -45,6 +57,7 @@ def register(app: typer.Typer, *, guard: CliGuard, runner: MutationRunner) -> No
                     document,
                     resource_id=args.id,
                     new_parent_id=args.new_parent,
+                    inherit_style_from_parent=args.inherit_style_from_parent,
                 )
 
             runner.run(
