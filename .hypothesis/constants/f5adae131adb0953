@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/check.py
-# hypothesis_version: 6.151.9
-
-[',', '--json', '--mode', 'Code', 'Message', 'Path', 'by_code', 'check', 'code', 'fold', 'ilograph-native', 'issues', 'message', 'mode', 'ok', 'path', 'strict', 'summary', 'total']

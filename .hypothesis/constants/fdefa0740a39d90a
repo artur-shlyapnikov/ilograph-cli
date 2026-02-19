@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/core/relation_types.py
-# hypothesis_version: 6.151.9
-
-['arrowDirection', 'backward', 'bidirectional', 'color', 'description', 'forward', 'from', 'label', 'secondary', 'to', 'via']

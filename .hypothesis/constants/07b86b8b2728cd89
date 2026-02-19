@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/core/constants.py
-# hypothesis_version: 6.151.9
-
-['*', ',', '/', '[', ']', '^', 'center', 'exclude', 'expand', 'focus', 'hide', 'highlight', 'include', 'none', 'root', 'select', 'zoomTo']

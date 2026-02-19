@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/core/arg_models.py
-# hypothesis_version: 6.151.9
-
-['after', 'backward', 'bidirectional', 'forbid', 'forward', 'from', 'id', 'ids', 'name', 'new_id', 'new_name', 'new_parent', 'parent', 'perspective', 'subtitle', 'to', 'via']

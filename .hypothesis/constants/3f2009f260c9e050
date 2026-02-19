@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/core/reference_resolution.py
-# hypothesis_version: 6.151.9
-
-[', ', '-', '::', 'alias', 'aliases', 'ambiguous', 'empty', 'for', 'id', 'imported-namespace', 'imports', 'name', 'namespace', 'perspectives', 'resolved', 'special', 'unresolved', 'unresolved-namespace', 'wildcard']

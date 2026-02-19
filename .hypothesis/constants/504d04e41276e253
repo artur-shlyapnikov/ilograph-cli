@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/context.py
-# hypothesis_version: 6.151.9
-
-['-', '--dry-run', '--extends', '--force', '--hidden/--visible', '--index', '--json', '--name', '--new-name', '--no-truncate', 'Contexts', 'Extends', 'Hidden', 'Index', 'Name', 'Roots', 'Source context name.', 'copy', 'count', 'create', 'delete', 'extends', 'fold', 'hasRoots', 'hidden', 'ignore', 'index', 'list', 'ls', 'name', 'new_name', 'no', 'no contexts', 'rename', 'reorder', 'rows', 'yes']

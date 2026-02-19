@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/core/ops_models.py
-# hypothesis_version: 6.151.9
-
-['*', 'after', 'arrowDirection', 'arrow_direction', 'clearDescription', 'clearFrom', 'clearLabel', 'clearTo', 'clearVia', 'clear_description', 'clear_from', 'clear_label', 'clear_to', 'clear_via', 'color', 'description', 'fmt.stable', 'forbid', 'from', 'group.create', 'group.move-many', 'index', 'invalid ops file:', 'label', 'loc', 'move.resource', 'msg', 'newParent', 'new_parent', 'op', 'ops', 'perspective', 'relation.add', 'relation.add-many', 'relation.edit', 'relation.edit-match', 'relation.remove', 'rename.resource', 'rename.resource-id', 'requireMatch', 'require_match', 'secondary', 'set', 'target.contexts', 'target.perspectives', 'to', 'validation error', 'via']

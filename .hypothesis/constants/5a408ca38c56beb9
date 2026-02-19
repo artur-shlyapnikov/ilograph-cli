@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/move.py
-# hypothesis_version: 6.151.9
-
-['--dry-run', '--id', '--new-parent', 'Resource id to move.', 'id', 'new_parent', 'resource']

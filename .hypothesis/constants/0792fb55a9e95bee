@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/cli_app.py
-# hypothesis_version: 6.151.9
-
-['alias', 'context', 'group', 'move', 'override', 'perspective', 'relation', 'rename', 'resource', 'sequence', 'walkthrough']

@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/commands/override.py
-# hypothesis_version: 6.151.9
-
-['-', '--clear-parent-id', '--clear-scale', '--dry-run', '--index', '--json', '--new-resource-id', '--no-truncate', '--parent-id', '--perspective', '--resource-id', '--scale', 'Index', 'Parent', 'Resource', 'Scale', 'add', 'count', 'edit', 'fold', 'ignore', 'index', 'list', 'ls', 'new_resource_id', 'no overrides', 'parentId', 'parent_id', 'perspective', 'remove', 'resourceId', 'resource_id', 'rows', 'scale']

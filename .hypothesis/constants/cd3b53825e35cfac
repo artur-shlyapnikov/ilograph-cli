@@ -1,4 +1,0 @@
-# file: /Users/ashliapnikov/tango/ilograph-cli/src/ilograph_cli/cli_options.py
-# hypothesis_version: 6.151.9
-
-['--diff', '--file', '--ignore-rule', '--only-rule', '--ops', '-f', 'summary']
