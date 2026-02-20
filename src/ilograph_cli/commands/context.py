@@ -12,9 +12,14 @@ from rich.table import Table
 from ruamel.yaml.comments import CommentedMap
 
 from ilograph_cli.cli_options import diff_mode_option, file_option
-from ilograph_cli.cli_support import CliGuard, MutationRunner
-from ilograph_cli.core.errors import ValidationError
-from ilograph_cli.core.normalize import normalize_optional_str, normalize_required_str
+from ilograph_cli.cli_support import CliGuard, MutationRunner, validate_payload
+from ilograph_cli.core.arg_models import (
+    ContextCopyArgs,
+    ContextCreateArgs,
+    ContextDeleteArgs,
+    ContextRenameArgs,
+    ContextReorderArgs,
+)
 from ilograph_cli.io.yaml_io import load_document
 from ilograph_cli.ops.context_ops import (
     copy_context,
@@ -106,16 +111,23 @@ def register(
         """Create context."""
 
         with guard:
-            resolved_name = _normalize_required(name, field_name="name")
-            resolved_extends = _normalize_optional(extends, field_name="extends")
+            args = validate_payload(
+                ContextCreateArgs,
+                {
+                    "name": name,
+                    "extends": extends,
+                    "hidden": hidden,
+                    "index": index,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return create_context(
                     document,
-                    name=resolved_name,
-                    extends=resolved_extends,
-                    hidden=hidden,
-                    index_1_based=index,
+                    name=args.name,
+                    extends=args.extends,
+                    hidden=args.hidden,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -136,11 +148,13 @@ def register(
         """Rename context."""
 
         with guard:
-            resolved_name = _normalize_required(name, field_name="name")
-            resolved_new_name = _normalize_required(new_name, field_name="new_name")
+            args = validate_payload(
+                ContextRenameArgs,
+                {"name": name, "new_name": new_name},
+            )
 
             def mutate(document: CommentedMap) -> bool:
-                return rename_context(document, name=resolved_name, new_name=resolved_new_name)
+                return rename_context(document, name=args.name, new_name=args.new_name)
 
             runner.run(
                 file_path=file_path,
@@ -164,10 +178,10 @@ def register(
         """Delete context."""
 
         with guard:
-            resolved_name = _normalize_required(name, field_name="name")
+            args = validate_payload(ContextDeleteArgs, {"name": name, "force": force})
 
             def mutate(document: CommentedMap) -> bool:
-                return delete_context(document, name=resolved_name, force=force)
+                return delete_context(document, name=args.name, force=args.force)
 
             runner.run(
                 file_path=file_path,
@@ -187,10 +201,10 @@ def register(
         """Reorder context."""
 
         with guard:
-            resolved_name = _normalize_required(name, field_name="name")
+            args = validate_payload(ContextReorderArgs, {"name": name, "index": index})
 
             def mutate(document: CommentedMap) -> bool:
-                return reorder_context(document, name=resolved_name, index_1_based=index)
+                return reorder_context(document, name=args.name, index_1_based=args.index)
 
             runner.run(
                 file_path=file_path,
@@ -215,15 +229,17 @@ def register(
         """Copy context."""
 
         with guard:
-            resolved_name = _normalize_required(name, field_name="name")
-            resolved_new_name = _normalize_required(new_name, field_name="new_name")
+            args = validate_payload(
+                ContextCopyArgs,
+                {"name": name, "new_name": new_name, "index": index},
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return copy_context(
                     document,
-                    name=resolved_name,
-                    new_name=resolved_new_name,
-                    index_1_based=index,
+                    name=args.name,
+                    new_name=args.new_name,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -232,17 +248,3 @@ def register(
                 diff_mode=diff_mode,
                 mutator=mutate,
             )
-
-
-def _normalize_required(value: str, *, field_name: str) -> str:
-    try:
-        return normalize_required_str(value, field_name=field_name)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc
-
-
-def _normalize_optional(value: str | None, *, field_name: str) -> str | None:
-    try:
-        return normalize_optional_str(value, field_name=field_name, empty_is_none=True)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc

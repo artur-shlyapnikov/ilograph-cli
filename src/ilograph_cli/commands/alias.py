@@ -12,9 +12,13 @@ from rich.table import Table
 from ruamel.yaml.comments import CommentedMap
 
 from ilograph_cli.cli_options import diff_mode_option, file_option
-from ilograph_cli.cli_support import CliGuard, MutationRunner
-from ilograph_cli.core.errors import ValidationError
-from ilograph_cli.core.normalize import normalize_required_str
+from ilograph_cli.cli_support import CliGuard, MutationRunner, validate_payload
+from ilograph_cli.core.arg_models import (
+    AliasAddArgs,
+    AliasEditArgs,
+    AliasRemoveArgs,
+    PerspectiveScopeArgs,
+)
 from ilograph_cli.io.yaml_io import load_document
 from ilograph_cli.ops.alias_ops import add_alias, edit_alias, list_aliases, remove_alias
 
@@ -43,9 +47,9 @@ def register(
         """List aliases in perspective."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(PerspectiveScopeArgs, {"perspective": perspective})
             document = load_document(file_path)
-            rows = list_aliases(document, perspective=resolved_perspective)
+            rows = list_aliases(document, perspective=args.perspective)
 
             if json_output:
                 typer.echo(
@@ -62,7 +66,7 @@ def register(
                 return
 
             overflow_mode: Literal["ignore", "fold"] = "ignore" if no_truncate else "fold"
-            table = Table(title=f"Aliases: {resolved_perspective}")
+            table = Table(title=f"Aliases: {args.perspective}")
             table.add_column("Index", overflow=overflow_mode, no_wrap=no_truncate)
             table.add_column("Alias", overflow=overflow_mode, no_wrap=no_truncate)
             table.add_column("For", overflow=overflow_mode, no_wrap=no_truncate)
@@ -93,17 +97,23 @@ def register(
         """Add alias."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
-            resolved_alias = _normalize_required(alias, field_name="alias")
-            resolved_for = _normalize_required(alias_for, field_name="for")
+            args = validate_payload(
+                AliasAddArgs,
+                {
+                    "perspective": perspective,
+                    "alias": alias,
+                    "for": alias_for,
+                    "index": index,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return add_alias(
                     document,
-                    perspective=resolved_perspective,
-                    alias=resolved_alias,
-                    alias_for=resolved_for,
-                    index_1_based=index,
+                    perspective=args.perspective,
+                    alias=args.alias,
+                    alias_for=args.alias_for,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -126,26 +136,23 @@ def register(
         """Edit alias."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
-            resolved_alias = _normalize_required(alias, field_name="alias")
-            resolved_new_alias = (
-                _normalize_required(new_alias, field_name="new_alias")
-                if new_alias is not None
-                else None
-            )
-            resolved_new_for = (
-                _normalize_required(new_for, field_name="new_for")
-                if new_for is not None
-                else None
+            args = validate_payload(
+                AliasEditArgs,
+                {
+                    "perspective": perspective,
+                    "alias": alias,
+                    "new_alias": new_alias,
+                    "new_for": new_for,
+                },
             )
 
             def mutate(document: CommentedMap) -> bool:
                 return edit_alias(
                     document,
-                    perspective=resolved_perspective,
-                    alias=resolved_alias,
-                    new_alias=resolved_new_alias,
-                    new_for=resolved_new_for,
+                    perspective=args.perspective,
+                    alias=args.alias,
+                    new_alias=args.new_alias,
+                    new_for=args.new_for,
                 )
 
             runner.run(
@@ -166,14 +173,19 @@ def register(
         """Remove alias."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
-            resolved_alias = _normalize_required(alias, field_name="alias")
+            args = validate_payload(
+                AliasRemoveArgs,
+                {
+                    "perspective": perspective,
+                    "alias": alias,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return remove_alias(
                     document,
-                    perspective=resolved_perspective,
-                    alias=resolved_alias,
+                    perspective=args.perspective,
+                    alias=args.alias,
                 )
 
             runner.run(
@@ -182,10 +194,3 @@ def register(
                 diff_mode=diff_mode,
                 mutator=mutate,
             )
-
-
-def _normalize_required(value: str, *, field_name: str) -> str:
-    try:
-        return normalize_required_str(value, field_name=field_name)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc

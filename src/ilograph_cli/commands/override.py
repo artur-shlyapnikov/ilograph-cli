@@ -12,9 +12,13 @@ from rich.table import Table
 from ruamel.yaml.comments import CommentedMap
 
 from ilograph_cli.cli_options import diff_mode_option, file_option
-from ilograph_cli.cli_support import CliGuard, MutationRunner
-from ilograph_cli.core.errors import ValidationError
-from ilograph_cli.core.normalize import normalize_required_str
+from ilograph_cli.cli_support import CliGuard, MutationRunner, validate_payload
+from ilograph_cli.core.arg_models import (
+    OverrideAddArgs,
+    OverrideEditArgs,
+    OverrideRemoveArgs,
+    PerspectiveScopeArgs,
+)
 from ilograph_cli.io.yaml_io import load_document
 from ilograph_cli.ops.override_ops import (
     add_override,
@@ -48,9 +52,9 @@ def register(
         """List overrides in perspective."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(PerspectiveScopeArgs, {"perspective": perspective})
             document = load_document(file_path)
-            rows = list_overrides(document, perspective=resolved_perspective)
+            rows = list_overrides(document, perspective=args.perspective)
 
             if json_output:
                 typer.echo(
@@ -67,7 +71,7 @@ def register(
                 return
 
             overflow_mode: Literal["ignore", "fold"] = "ignore" if no_truncate else "fold"
-            table = Table(title=f"Overrides: {resolved_perspective}")
+            table = Table(title=f"Overrides: {args.perspective}")
             table.add_column("Index", overflow=overflow_mode, no_wrap=no_truncate)
             table.add_column("Resource", overflow=overflow_mode, no_wrap=no_truncate)
             table.add_column("Parent", overflow=overflow_mode, no_wrap=no_truncate)
@@ -101,22 +105,25 @@ def register(
         """Add override."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
-            resolved_resource_id = _normalize_required(resource_id, field_name="resource_id")
-            resolved_parent_id = (
-                _normalize_required(parent_id, field_name="parent_id")
-                if parent_id is not None
-                else None
+            args = validate_payload(
+                OverrideAddArgs,
+                {
+                    "perspective": perspective,
+                    "resource_id": resource_id,
+                    "parent_id": parent_id,
+                    "scale": scale,
+                    "index": index,
+                },
             )
 
             def mutate(document: CommentedMap) -> bool:
                 return add_override(
                     document,
-                    perspective=resolved_perspective,
-                    resource_id=resolved_resource_id,
-                    parent_id=resolved_parent_id,
-                    scale=scale,
-                    index_1_based=index,
+                    perspective=args.perspective,
+                    resource_id=args.resource_id,
+                    parent_id=args.parent_id,
+                    scale=args.scale,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -142,29 +149,29 @@ def register(
         """Edit override."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
-            resolved_resource_id = _normalize_required(resource_id, field_name="resource_id")
-            resolved_new_resource_id = (
-                _normalize_required(new_resource_id, field_name="new_resource_id")
-                if new_resource_id is not None
-                else None
-            )
-            resolved_parent_id = (
-                _normalize_required(parent_id, field_name="parent_id")
-                if parent_id is not None
-                else None
+            args = validate_payload(
+                OverrideEditArgs,
+                {
+                    "perspective": perspective,
+                    "resource_id": resource_id,
+                    "new_resource_id": new_resource_id,
+                    "parent_id": parent_id,
+                    "scale": scale,
+                    "clear_parent_id": clear_parent_id,
+                    "clear_scale": clear_scale,
+                },
             )
 
             def mutate(document: CommentedMap) -> bool:
                 return edit_override(
                     document,
-                    perspective=resolved_perspective,
-                    resource_id=resolved_resource_id,
-                    new_resource_id=resolved_new_resource_id,
-                    parent_id=resolved_parent_id,
-                    scale=scale,
-                    clear_parent_id=clear_parent_id,
-                    clear_scale=clear_scale,
+                    perspective=args.perspective,
+                    resource_id=args.resource_id,
+                    new_resource_id=args.new_resource_id,
+                    parent_id=args.parent_id,
+                    scale=args.scale,
+                    clear_parent_id=args.clear_parent_id,
+                    clear_scale=args.clear_scale,
                 )
 
             runner.run(
@@ -185,14 +192,19 @@ def register(
         """Remove override."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
-            resolved_resource_id = _normalize_required(resource_id, field_name="resource_id")
+            args = validate_payload(
+                OverrideRemoveArgs,
+                {
+                    "perspective": perspective,
+                    "resource_id": resource_id,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return remove_override(
                     document,
-                    perspective=resolved_perspective,
-                    resource_id=resolved_resource_id,
+                    perspective=args.perspective,
+                    resource_id=args.resource_id,
                 )
 
             runner.run(
@@ -201,10 +213,3 @@ def register(
                 diff_mode=diff_mode,
                 mutator=mutate,
             )
-
-
-def _normalize_required(value: str, *, field_name: str) -> str:
-    try:
-        return normalize_required_str(value, field_name=field_name)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc

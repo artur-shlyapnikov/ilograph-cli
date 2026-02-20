@@ -12,9 +12,14 @@ from rich.table import Table
 from ruamel.yaml.comments import CommentedMap
 
 from ilograph_cli.cli_options import diff_mode_option, file_option
-from ilograph_cli.cli_support import CliGuard, MutationRunner
-from ilograph_cli.core.errors import ValidationError
-from ilograph_cli.core.normalize import normalize_optional_str, normalize_required_str
+from ilograph_cli.cli_support import CliGuard, MutationRunner, validate_payload
+from ilograph_cli.core.arg_models import (
+    PerspectiveCopyArgs,
+    PerspectiveCreateArgs,
+    PerspectiveDeleteArgs,
+    PerspectiveRenameArgs,
+    PerspectiveReorderArgs,
+)
 from ilograph_cli.io.yaml_io import load_document
 from ilograph_cli.ops.perspective_ops import (
     copy_perspective,
@@ -111,19 +116,25 @@ def register(
         """Create perspective."""
 
         with guard:
-            resolved_id = _normalize_required(perspective_id, field_name="id")
-            resolved_name = _normalize_optional(name, field_name="name") or resolved_id
-            resolved_extends = _normalize_optional(extends, field_name="extends")
-            resolved_orientation = _normalize_optional(orientation, field_name="orientation")
+            args = validate_payload(
+                PerspectiveCreateArgs,
+                {
+                    "id": perspective_id,
+                    "name": name,
+                    "extends": extends,
+                    "orientation": orientation,
+                    "index": index,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return create_perspective(
                     document,
-                    perspective_id=resolved_id,
-                    name=resolved_name,
-                    extends=resolved_extends,
-                    orientation=resolved_orientation,
-                    index_1_based=index,
+                    perspective_id=args.id,
+                    name=args.name,
+                    extends=args.extends,
+                    orientation=args.orientation,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -145,16 +156,21 @@ def register(
         """Rename perspective id/name."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="id")
-            resolved_new_id = _normalize_optional(new_id, field_name="new_id")
-            resolved_new_name = _normalize_optional(new_name, field_name="new_name")
+            args = validate_payload(
+                PerspectiveRenameArgs,
+                {
+                    "id": perspective,
+                    "new_id": new_id,
+                    "new_name": new_name,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return rename_perspective(
                     document,
-                    perspective=resolved_perspective,
-                    new_id=resolved_new_id,
-                    new_name=resolved_new_name,
+                    perspective=args.id,
+                    new_id=args.new_id,
+                    new_name=args.new_name,
                 )
 
             runner.run(
@@ -179,10 +195,13 @@ def register(
         """Delete perspective."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="id")
+            args = validate_payload(
+                PerspectiveDeleteArgs,
+                {"id": perspective, "force": force},
+            )
 
             def mutate(document: CommentedMap) -> bool:
-                return delete_perspective(document, perspective=resolved_perspective, force=force)
+                return delete_perspective(document, perspective=args.id, force=args.force)
 
             runner.run(
                 file_path=file_path,
@@ -202,13 +221,16 @@ def register(
         """Reorder perspective."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="id")
+            args = validate_payload(
+                PerspectiveReorderArgs,
+                {"id": perspective, "index": index},
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return reorder_perspective(
                     document,
-                    perspective=resolved_perspective,
-                    index_1_based=index,
+                    perspective=args.id,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -235,17 +257,23 @@ def register(
         """Copy perspective."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="id")
-            resolved_new_id = _normalize_required(new_id, field_name="new_id")
-            resolved_new_name = _normalize_optional(new_name, field_name="new_name")
+            args = validate_payload(
+                PerspectiveCopyArgs,
+                {
+                    "id": perspective,
+                    "new_id": new_id,
+                    "new_name": new_name,
+                    "index": index,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return copy_perspective(
                     document,
-                    perspective=resolved_perspective,
-                    new_id=resolved_new_id,
-                    new_name=resolved_new_name,
-                    index_1_based=index,
+                    perspective=args.id,
+                    new_id=args.new_id,
+                    new_name=args.new_name,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -254,17 +282,3 @@ def register(
                 diff_mode=diff_mode,
                 mutator=mutate,
             )
-
-
-def _normalize_required(value: str, *, field_name: str) -> str:
-    try:
-        return normalize_required_str(value, field_name=field_name)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc
-
-
-def _normalize_optional(value: str | None, *, field_name: str) -> str | None:
-    try:
-        return normalize_optional_str(value, field_name=field_name, empty_is_none=True)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc

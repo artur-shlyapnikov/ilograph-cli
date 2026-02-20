@@ -12,9 +12,13 @@ from rich.table import Table
 from ruamel.yaml.comments import CommentedMap
 
 from ilograph_cli.cli_options import diff_mode_option, file_option
-from ilograph_cli.cli_support import CliGuard, MutationRunner
-from ilograph_cli.core.errors import ValidationError
-from ilograph_cli.core.normalize import normalize_optional_str, normalize_required_str
+from ilograph_cli.cli_support import CliGuard, MutationRunner, validate_payload
+from ilograph_cli.core.arg_models import (
+    PerspectiveScopeArgs,
+    WalkthroughAddArgs,
+    WalkthroughEditArgs,
+    WalkthroughRemoveArgs,
+)
 from ilograph_cli.io.yaml_io import load_document
 from ilograph_cli.ops.walkthrough_ops import (
     add_walkthrough_slide,
@@ -48,9 +52,9 @@ def register(
         """List walkthrough slides."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(PerspectiveScopeArgs, {"perspective": perspective})
             document = load_document(file_path)
-            rows = list_walkthrough_slides(document, perspective=resolved_perspective)
+            rows = list_walkthrough_slides(document, perspective=args.perspective)
 
             if json_output:
                 typer.echo(
@@ -67,7 +71,7 @@ def register(
                 return
 
             overflow_mode: Literal["ignore", "fold"] = "ignore" if no_truncate else "fold"
-            table = Table(title=f"Walkthrough: {resolved_perspective}")
+            table = Table(title=f"Walkthrough: {args.perspective}")
             table.add_column("Index", overflow=overflow_mode, no_wrap=no_truncate)
             table.add_column("Text", overflow=overflow_mode, no_wrap=no_truncate)
             table.add_column("Select", overflow=overflow_mode, no_wrap=no_truncate)
@@ -110,19 +114,31 @@ def register(
         """Add walkthrough slide."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(
+                WalkthroughAddArgs,
+                {
+                    "perspective": perspective,
+                    "text": text,
+                    "select": select,
+                    "expand": expand,
+                    "highlight": highlight,
+                    "hide": hide,
+                    "detail": detail,
+                    "index": index,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return add_walkthrough_slide(
                     document,
-                    perspective=resolved_perspective,
-                    text=_normalize_optional(text, field_name="text"),
-                    select=_normalize_optional(select, field_name="select"),
-                    expand=_normalize_optional(expand, field_name="expand"),
-                    highlight=_normalize_optional(highlight, field_name="highlight"),
-                    hide=_normalize_optional(hide, field_name="hide"),
-                    detail=detail,
-                    index_1_based=index,
+                    perspective=args.perspective,
+                    text=args.text,
+                    select=args.select,
+                    expand=args.expand,
+                    highlight=args.highlight,
+                    hide=args.hide,
+                    detail=args.detail,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -155,25 +171,43 @@ def register(
         """Edit walkthrough slide."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(
+                WalkthroughEditArgs,
+                {
+                    "perspective": perspective,
+                    "index": index,
+                    "text": text,
+                    "select": select,
+                    "expand": expand,
+                    "highlight": highlight,
+                    "hide": hide,
+                    "detail": detail,
+                    "clear_text": clear_text,
+                    "clear_select": clear_select,
+                    "clear_expand": clear_expand,
+                    "clear_highlight": clear_highlight,
+                    "clear_hide": clear_hide,
+                    "clear_detail": clear_detail,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return edit_walkthrough_slide(
                     document,
-                    perspective=resolved_perspective,
-                    index_1_based=index,
-                    text=_normalize_optional(text, field_name="text"),
-                    select=_normalize_optional(select, field_name="select"),
-                    expand=_normalize_optional(expand, field_name="expand"),
-                    highlight=_normalize_optional(highlight, field_name="highlight"),
-                    hide=_normalize_optional(hide, field_name="hide"),
-                    detail=detail,
-                    clear_text=clear_text,
-                    clear_select=clear_select,
-                    clear_expand=clear_expand,
-                    clear_highlight=clear_highlight,
-                    clear_hide=clear_hide,
-                    clear_detail=clear_detail,
+                    perspective=args.perspective,
+                    index_1_based=args.index,
+                    text=args.text,
+                    select=args.select,
+                    expand=args.expand,
+                    highlight=args.highlight,
+                    hide=args.hide,
+                    detail=args.detail,
+                    clear_text=args.clear_text,
+                    clear_select=args.clear_select,
+                    clear_expand=args.clear_expand,
+                    clear_highlight=args.clear_highlight,
+                    clear_hide=args.clear_hide,
+                    clear_detail=args.clear_detail,
                 )
 
             runner.run(
@@ -194,13 +228,16 @@ def register(
         """Remove walkthrough slide."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(
+                WalkthroughRemoveArgs,
+                {"perspective": perspective, "index": index},
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return remove_walkthrough_slide(
                     document,
-                    perspective=resolved_perspective,
-                    index_1_based=index,
+                    perspective=args.perspective,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -209,17 +246,3 @@ def register(
                 diff_mode=diff_mode,
                 mutator=mutate,
             )
-
-
-def _normalize_required(value: str, *, field_name: str) -> str:
-    try:
-        return normalize_required_str(value, field_name=field_name)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc
-
-
-def _normalize_optional(value: str | None, *, field_name: str) -> str | None:
-    try:
-        return normalize_optional_str(value, field_name=field_name, empty_is_none=True)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc

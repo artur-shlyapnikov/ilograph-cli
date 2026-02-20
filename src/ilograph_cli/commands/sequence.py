@@ -12,9 +12,13 @@ from rich.table import Table
 from ruamel.yaml.comments import CommentedMap
 
 from ilograph_cli.cli_options import diff_mode_option, file_option
-from ilograph_cli.cli_support import CliGuard, MutationRunner
-from ilograph_cli.core.errors import ValidationError
-from ilograph_cli.core.normalize import normalize_optional_str, normalize_required_str
+from ilograph_cli.cli_support import CliGuard, MutationRunner, validate_payload
+from ilograph_cli.core.arg_models import (
+    PerspectiveScopeArgs,
+    SequenceAddArgs,
+    SequenceEditArgs,
+    SequenceRemoveArgs,
+)
 from ilograph_cli.io.yaml_io import load_document
 from ilograph_cli.ops.sequence_ops import (
     add_sequence_step,
@@ -48,9 +52,9 @@ def register(
         """List sequence steps."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(PerspectiveScopeArgs, {"perspective": perspective})
             document = load_document(file_path)
-            rows = list_sequence_steps(document, perspective=resolved_perspective)
+            rows = list_sequence_steps(document, perspective=args.perspective)
 
             if json_output:
                 typer.echo(
@@ -67,7 +71,7 @@ def register(
                 return
 
             overflow_mode: Literal["ignore", "fold"] = "ignore" if no_truncate else "fold"
-            table = Table(title=f"Sequence: {resolved_perspective}")
+            table = Table(title=f"Sequence: {args.perspective}")
             table.add_column("Index", overflow=overflow_mode, no_wrap=no_truncate)
             table.add_column("Action", overflow=overflow_mode, no_wrap=no_truncate)
             table.add_column("Target", overflow=overflow_mode, no_wrap=no_truncate)
@@ -119,22 +123,37 @@ def register(
         """Add sequence step."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(
+                SequenceAddArgs,
+                {
+                    "perspective": perspective,
+                    "to": to,
+                    "to_and_back": to_and_back,
+                    "to_async": to_async,
+                    "restart_at": restart_at,
+                    "label": label,
+                    "description": description,
+                    "bidirectional": bidirectional,
+                    "color": color,
+                    "index": index,
+                    "start": start,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return add_sequence_step(
                     document,
-                    perspective=resolved_perspective,
-                    to=_normalize_optional(to, field_name="to"),
-                    to_and_back=_normalize_optional(to_and_back, field_name="to_and_back"),
-                    to_async=_normalize_optional(to_async, field_name="to_async"),
-                    restart_at=_normalize_optional(restart_at, field_name="restart_at"),
-                    label=_normalize_optional(label, field_name="label"),
-                    description=_normalize_optional(description, field_name="description"),
-                    bidirectional=bidirectional,
-                    color=_normalize_optional(color, field_name="color"),
-                    index_1_based=index,
-                    start_if_missing=_normalize_optional(start, field_name="start"),
+                    perspective=args.perspective,
+                    to=args.to,
+                    to_and_back=args.to_and_back,
+                    to_async=args.to_async,
+                    restart_at=args.restart_at,
+                    label=args.label,
+                    description=args.description,
+                    bidirectional=args.bidirectional,
+                    color=args.color,
+                    index_1_based=args.index,
+                    start_if_missing=args.start,
                 )
 
             runner.run(
@@ -169,24 +188,41 @@ def register(
         """Edit sequence step."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(
+                SequenceEditArgs,
+                {
+                    "perspective": perspective,
+                    "index": index,
+                    "to": to,
+                    "to_and_back": to_and_back,
+                    "to_async": to_async,
+                    "restart_at": restart_at,
+                    "label": label,
+                    "description": description,
+                    "bidirectional": bidirectional,
+                    "color": color,
+                    "clear_label": clear_label,
+                    "clear_description": clear_description,
+                    "clear_color": clear_color,
+                },
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return edit_sequence_step(
                     document,
-                    perspective=resolved_perspective,
-                    index_1_based=index,
-                    to=_normalize_optional(to, field_name="to"),
-                    to_and_back=_normalize_optional(to_and_back, field_name="to_and_back"),
-                    to_async=_normalize_optional(to_async, field_name="to_async"),
-                    restart_at=_normalize_optional(restart_at, field_name="restart_at"),
-                    label=_normalize_optional(label, field_name="label"),
-                    description=_normalize_optional(description, field_name="description"),
-                    bidirectional=bidirectional,
-                    color=_normalize_optional(color, field_name="color"),
-                    clear_label=clear_label,
-                    clear_description=clear_description,
-                    clear_color=clear_color,
+                    perspective=args.perspective,
+                    index_1_based=args.index,
+                    to=args.to,
+                    to_and_back=args.to_and_back,
+                    to_async=args.to_async,
+                    restart_at=args.restart_at,
+                    label=args.label,
+                    description=args.description,
+                    bidirectional=args.bidirectional,
+                    color=args.color,
+                    clear_label=args.clear_label,
+                    clear_description=args.clear_description,
+                    clear_color=args.clear_color,
                 )
 
             runner.run(
@@ -207,13 +243,16 @@ def register(
         """Remove sequence step."""
 
         with guard:
-            resolved_perspective = _normalize_required(perspective, field_name="perspective")
+            args = validate_payload(
+                SequenceRemoveArgs,
+                {"perspective": perspective, "index": index},
+            )
 
             def mutate(document: CommentedMap) -> bool:
                 return remove_sequence_step(
                     document,
-                    perspective=resolved_perspective,
-                    index_1_based=index,
+                    perspective=args.perspective,
+                    index_1_based=args.index,
                 )
 
             runner.run(
@@ -230,17 +269,3 @@ def _action_and_target(row: dict[str, object]) -> tuple[str, str]:
         if isinstance(value, str):
             return key, value
     return "-", "-"
-
-
-def _normalize_required(value: str, *, field_name: str) -> str:
-    try:
-        return normalize_required_str(value, field_name=field_name)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc
-
-
-def _normalize_optional(value: str | None, *, field_name: str) -> str | None:
-    try:
-        return normalize_optional_str(value, field_name=field_name, empty_is_none=True)
-    except ValueError as exc:
-        raise ValidationError(str(exc)) from exc
