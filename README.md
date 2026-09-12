@@ -14,7 +14,7 @@ commands validate the resulting document before replacing the input file.
 The repository workflow uses uv:
 
 ```bash
-uv sync --dev
+uv sync
 uv run ilograph --help
 ```
 
@@ -46,7 +46,7 @@ ilograph rename resource --file diagram.yaml --id api --name "API Gateway"
 ```
 
 `check`, `impact`, `resolve`, `find`, and list commands read the diagram. The
-other examples change it unless they include `--dry-run`.
+other examples change the file unless they include `--dry-run`.
 
 ## Command reference
 
@@ -94,7 +94,7 @@ The write commands support `--dry-run` and a `--diff` mode:
 
 The runner reads the file, applies operations in memory, validates the
 resulting document in strict mode, and writes it atomically. If validation
-fails, the input file is not changed. `apply` and `batch` run all operations
+fails, the runner leaves the input file unchanged. `apply` and `batch` run all operations
 as one transaction.
 
 Common operations:
@@ -122,11 +122,7 @@ ilograph context create --file diagram.yaml --name stage --extends prod
 The `batch` command accepts repeated JSON objects:
 
 ```bash
-ilograph batch \
-  --file diagram.yaml \
-  --op '{"op":"rename.resource","id":"api","name":"API v2"}' \
-  --op '{"op":"relation.add","perspective":"Runtime","from":"web","to":"api"}' \
-  --dry-run --diff full
+ilograph batch --file diagram.yaml --op '{"op":"rename.resource","id":"api","name":"API v2"}' --op '{"op":"relation.add","perspective":"Runtime","from":"web","to":"api"}' --dry-run --diff full
 ```
 
 `apply` reads the same operation format from an `ops.yaml` file:
@@ -173,7 +169,7 @@ See [`docs/errors.md`](docs/errors.md) for the full error list and fixes.
 Install development dependencies and run the repository checks:
 
 ```bash
-uv sync --dev
+uv sync
 uv run pytest
 uv run ruff check .
 uv run mypy src
