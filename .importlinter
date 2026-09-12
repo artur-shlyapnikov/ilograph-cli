@@ -67,7 +67,8 @@ modules =
     ilograph_cli.commands.move
     ilograph_cli.commands.override
     ilograph_cli.commands.perspective
-    ilograph_cli.commands.relation
+    ilograph_cli.commands.relation_list
+    ilograph_cli.commands.relation_mutate
     ilograph_cli.commands.rename
     ilograph_cli.commands.resolve
     ilograph_cli.commands.resource
