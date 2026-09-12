@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# control-ilograph: verification harness for the ilograph CLI.
+#   doctor [--file F] ................. read-only health check
+#   fixture <src> <destdir> [name] .... copy fixture into isolated dir
+#   cli -- <ilograph args...> .......... run the repo's ilograph binary
+set -euo pipefail
+
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$SKILL_DIR/../../.." && pwd)"
+
+usage() {
+  echo "usage: control-ilograph doctor [--file F] | fixture <src> <destdir> [name] | cli -- <args...>" >&2
+  exit 2
+}
+
+cmd_doctor() {
+  local target=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --file) target="${2:-}"; shift 2 ;;
+      -h|--help) usage ;;
+      *) echo "doctor: unknown arg $1" >&2; exit 2 ;;
+    esac
+  done
+  local failures=0
+
+  cd "$REPO_ROOT"
+  if uv run ilograph --help >/dev/null 2>&1; then
+    echo "doctor: binary ok (uv run ilograph --help exit 0)"
+  else
+    echo "doctor: FAIL binary (uv run ilograph --help nonzero)" >&2
+    failures=$((failures + 1))
+  fi
+
+  local golden="$REPO_ROOT/tests/golden/rename_id/input.yaml"
+  if [[ -f "$golden" ]]; then
+    local out
+    if out="$(uv run ilograph check --file "$golden" 2>&1)"; then
+      if grep -q "check ok" <<<"$out"; then
+        echo "doctor: golden fixture validates (check ok)"
+      else
+        echo "doctor: FAIL golden check output missing 'check ok': $out" >&2
+        failures=$((failures + 1))
+      fi
+    else
+      echo "doctor: FAIL golden fixture does not validate: $out" >&2
+      failures=$((failures + 1))
+    fi
+  else
+    echo "doctor: FAIL golden fixture missing: $golden" >&2
+    failures=$((failures + 1))
+  fi
+
+  if [[ -n "$target" ]]; then
+    if [[ -f "$target" ]]; then
+      echo "doctor: target exists ($target)"
+    else
+      echo "doctor: FAIL target missing ($target)" >&2
+      failures=$((failures + 1))
+    fi
+    if [[ -e "${target}.lock" ]]; then
+      echo "doctor: FAIL stale lock present (${target}.lock)" >&2
+      failures=$((failures + 1))
+    else
+      echo "doctor: no lock on target"
+    fi
+  fi
+
+  if [[ "$failures" -gt 0 ]]; then
+    echo "doctor: $failures check(s) FAILED" >&2
+    return 1
+  fi
+  echo "doctor: all checks passed"
+}
+
+cmd_fixture() {
+  if [[ $# -lt 2 ]]; then usage; fi
+  local src="$1" destdir="$2" name="${3:-$(basename "$1")}"
+  [[ "$src" = /* ]] || src="$REPO_ROOT/$src"
+  if [[ ! -f "$src" ]]; then echo "fixture: source missing: $src" >&2; exit 1; fi
+  mkdir -p "$destdir"
+  cp "$src" "$destdir/$name"
+  echo "$destdir/$name"
+}
+
+cmd_cli() {
+  if [[ "${1:-}" != "--" ]]; then
+    echo "cli: expected '--' before ilograph args" >&2
+    usage
+  fi
+  shift
+  cd "$REPO_ROOT"
+  exec uv run ilograph "$@"
+}
+
+sub="${1:-}"
+case "$sub" in
+  doctor) shift; cmd_doctor "$@" ;;
+  fixture) shift; cmd_fixture "$@" ;;
+  cli) shift; cmd_cli "$@" ;;
+  -h|--help|"") usage ;;
+  *) echo "unknown subcommand: $sub" >&2; usage ;;
+esac
